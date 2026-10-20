@@ -1,5 +1,7 @@
 # jevDoom
 
+![The Jev playing Doom](doomGIF.gif)
+
 **Jev** — [TypeSafe](https://typesafe.ai)'s System One model — playing Doom, and finishing levels.
 
 The code owns the game loop; the Jev decides. Doom runs for real through

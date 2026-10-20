@@ -8,3 +8,4 @@ runs/
 .cache/
 .pytest_cache/
 _vizdoom.ini
+*.mp4
