@@ -111,26 +111,6 @@ Every game writes `runs/*.jsonl` (state, tactic, confidence, probabilities, posi
 objective) — that is what the UI's replay reopens. `viewer.html` is a small standalone
 viewer for logs of the legacy loop (levels without an exit).
 
-## Results
-
-| map | who decides | difficulty | finished |
-| --- | --- | --- | --- |
-| MAP01 | reflex (`--autopilot`) | 3 | **8 of 8** (12 of 12 in the previous batch) |
-| MAP01 | Jev | 3 | finished (also from the UI), ~0.3 s per decision |
-| MAP02 | reflex | 1 | **3 of 4** — the failures are deaths, not getting stuck |
-| MAP02 | Jev | 1 | **2 of 2** — 794 and 834 steps, 41–43 kills |
-| MAP02 | reflex | 2 | 2 of 6 |
-| MAP02 | reflex | 3 | ~3 in 26 — the opening (3 ShotgunGuys) kills early in half of the runs |
-| MAP03 | reflex | 1 | grabs the blue and yellow keys; does not finish yet |
-| arena | reflex with mouse aim | — | 26 kills from 26 bullets, 3 of 3 |
-
-MAP02 asks for what MAP01 does not: grab the weapon, press the switch that opens a remote
-door, call and ride the lift, collect the three keys and open the locked doors. All of it
-comes from the WAD and the live sector heights (Phases 12 and 13 in PLAN.md). On some maps
-(MAP03, 04, 08, 09) ViZDoom's `sectors_info` hangs the engine: the project detects that
-once, opens the map without it and assumes doors open after triggering the switch with
-the same tag.
-
 ## Tests
 
 ```bash
