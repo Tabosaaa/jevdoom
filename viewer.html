@@ -1,0 +1,225 @@
+<!doctype html>
+<!--
+  viewer.html — editorial view of jevDoom's decision tree, for logs of the legacy loop.
+  Self-contained: open it in a browser and load a runs/*.jsonl log written by main.py
+  (Jev mode, levels without an exit). Replays each decision: what the Jev saw and what
+  it chose, with the probability of each action. Makes no API calls. For everything
+  else use the full UI (python -m jevdoom.server).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>jevDoom — decisions</title>
+<style>
+  :root {
+    --paper: oklch(98.5% 0.008 85);
+    --ink: oklch(22% 0.02 60);
+    --muted: oklch(52% 0.02 60);
+    --line: oklch(88% 0.01 70);
+    --accent: oklch(58% 0.17 25);
+    --bar: oklch(92% 0.01 70);
+    --space: clamp(1rem, 0.6rem + 2vw, 2.5rem);
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: var(--sans); line-height: 1.5;
+    padding: var(--space);
+  }
+  header { max-width: 68rem; margin: 0 auto var(--space); border-bottom: 2px solid var(--ink); padding-bottom: 1rem; }
+  h1 { font-family: var(--serif); font-weight: 600; font-size: clamp(2rem, 1rem + 4vw, 3.5rem); margin: 0; letter-spacing: -0.02em; }
+  .kicker { text-transform: uppercase; letter-spacing: 0.18em; font-size: 0.72rem; color: var(--accent); font-weight: 700; }
+  .lede { color: var(--muted); max-width: 42rem; margin: 0.4rem 0 0; }
+  main { max-width: 68rem; margin: 0 auto; }
+  .load { border: 1px dashed var(--line); border-radius: 8px; padding: 2rem; text-align: center; color: var(--muted); }
+  .grid { display: grid; grid-template-columns: 1fr; gap: var(--space); }
+  @media (min-width: 52rem) { .grid { grid-template-columns: 1fr 1.1fr; } }
+  section h2 { font-family: var(--serif); font-size: 1.1rem; font-weight: 600; margin: 0 0 1rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--line); }
+  .stat { display: flex; justify-content: space-between; align-items: baseline; padding: 0.35rem 0; border-bottom: 1px solid var(--line); }
+  .stat .v { font-family: var(--serif); font-size: 1.25rem; }
+  .chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+  .chip { font-size: 0.8rem; padding: 0.2rem 0.6rem; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); }
+  .chip.hot { border-color: var(--accent); color: var(--accent); }
+  .none { color: var(--muted); font-style: italic; }
+  .tier { text-transform: uppercase; letter-spacing: 0.14em; font-size: 0.68rem; color: var(--accent); font-weight: 700; margin: 0 0 0.3rem; }
+  .goal { font-family: var(--serif); font-size: 1.5rem; margin: 0 0 0.2rem; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 1.4rem 0; }
+  .decision { font-family: var(--serif); font-size: clamp(1.6rem, 1rem + 3vw, 2.4rem); margin: 0 0 0.2rem; }
+  .conf { color: var(--muted); margin: 0 0 1.2rem; }
+  .prob { margin: 0.55rem 0; }
+  .prob-head { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 0.2rem; }
+  .prob.sel .prob-head { font-weight: 700; }
+  .track { height: 8px; background: var(--bar); border-radius: 4px; overflow: hidden; }
+  .fill { height: 100%; background: var(--muted); }
+  .prob.sel .fill { background: var(--accent); }
+  .controls { max-width: 68rem; margin: var(--space) auto 0; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 1rem; }
+  button { font: inherit; padding: 0.5rem 1.1rem; border: 1px solid var(--ink); background: var(--ink); color: var(--paper); border-radius: 6px; cursor: pointer; }
+  button:hover { background: var(--accent); border-color: var(--accent); }
+  input[type=range] { flex: 1; min-width: 12rem; accent-color: var(--accent); }
+  .meta { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 0.9rem; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <p class="kicker">jevDoom</p>
+  <h1>The Jev's decisions</h1>
+  <p class="lede">One decision at a time: what the model saw of the game and the action it chose, with the probability of each alternative.</p>
+</header>
+
+<main>
+  <div id="loader" class="load">
+    <p>Drop a <strong>runs/*.jsonl</strong> file here or pick one:</p>
+    <input id="file" type="file" accept=".jsonl,.json,.txt" />
+  </div>
+
+  <div id="viewer" hidden>
+    <div class="grid">
+      <section>
+        <h2>What the Jev sees</h2>
+        <div class="stat"><span>Health</span><span class="v" id="health">—</span></div>
+        <div class="stat"><span>Ammo</span><span class="v" id="ammo">—</span></div>
+        <div class="stat"><span>Explored areas</span><span class="v" id="areas">—</span></div>
+        <div class="stat"><span>Unexplored heading</span><span class="v" id="bearing">—</span></div>
+        <div class="stat"><span>Status</span><span class="v" id="status">—</span></div>
+        <p style="margin:1rem 0 0.3rem;color:var(--muted)">Visible enemies</p>
+        <div class="chips" id="enemies"></div>
+        <p style="margin:1rem 0 0.3rem;color:var(--muted)">Visible items</p>
+        <div class="chips" id="items"></div>
+      </section>
+      <section>
+        <h2>What the Jev decides</h2>
+        <div id="goal-tier">
+          <p class="tier">1 · Level goal</p>
+          <p class="goal" id="goal">—</p>
+          <p class="conf" id="goal-confidence">—</p>
+          <div id="goal-probs"></div>
+          <hr />
+        </div>
+        <p class="tier">2 · Action now</p>
+        <p class="decision" id="action">—</p>
+        <p class="conf" id="confidence">—</p>
+        <div id="probs"></div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<div id="controls" class="controls" hidden>
+  <button id="play">▶ Play</button>
+  <input id="scrub" type="range" min="0" value="0" />
+  <span class="meta" id="meta">—</span>
+</div>
+
+<script>
+const G_LABELS = {
+  explore: "Explore new ground", open_path: "Open a path",
+  collect_item: "Collect item", recover_health: "Recover health",
+};
+const A_LABELS = {
+  move_forward: "Move forward", move_back: "Move back",
+  turn_left: "Turn left", turn_right: "Turn right",
+  strafe_left: "Strafe left", strafe_right: "Strafe right",
+  shoot: "Shoot", use: "Use / open",
+};
+let rows = [], i = 0, timer = null;
+
+const $ = (id) => document.getElementById(id);
+
+function parse(text) {
+  return text.trim().split("\n").filter(Boolean).map((l) => JSON.parse(l));
+}
+
+function sightings(box, list, isHot) {
+  box.innerHTML = "";
+  if (!list || !list.length) { box.innerHTML = '<span class="none">none</span>'; return; }
+  for (const s of list) {
+    const c = document.createElement("span");
+    c.className = "chip" + (isHot(s) ? " hot" : "");
+    c.textContent = `${s.type} · ${s.direction} · ${s.distance}`;
+    box.appendChild(c);
+  }
+}
+
+function bars(wrap, probabilities, chosen, labels) {
+  wrap.innerHTML = "";
+  for (const [name, p] of Object.entries(probabilities).sort((a, b) => b[1] - a[1])) {
+    const el = document.createElement("div");
+    el.className = "prob" + (name === chosen ? " sel" : "");
+    el.innerHTML =
+      `<div class="prob-head"><span>${labels[name] || name}</span><span>${(p * 100).toFixed(0)}%</span></div>` +
+      `<div class="track"><div class="fill" style="width:${(p * 100).toFixed(1)}%"></div></div>`;
+    wrap.appendChild(el);
+  }
+}
+
+function render() {
+  const r = rows[i], s = r.state;
+  $("health").textContent = s.health;
+  $("ammo").textContent = s.ammo;
+  $("areas").textContent = s.explored_areas;
+  $("bearing").textContent = s.unexplored_bearing || "—";
+
+  const flags = [];
+  if (s.under_attack) flags.push("under attack");
+  if (s.blocked) flags.push("blocked");
+  if (s.key_visible) flags.push("key in sight");
+  $("status").textContent = flags.length ? flags.join(" · ") : "clear";
+
+  sightings($("enemies"), s.enemies, (e) => e.direction === "ahead");
+  sightings($("items"), s.items, () => false);
+
+  $("goal-tier").hidden = !r.goal;
+  if (r.goal) {
+    $("goal").textContent = G_LABELS[r.goal] || r.goal;
+    $("goal-confidence").textContent = `confidence ${(r.goal_confidence * 100).toFixed(0)}%`;
+    bars($("goal-probs"), r.goal_probabilities || {}, r.goal, G_LABELS);
+  }
+
+  $("action").textContent = A_LABELS[r.action] || r.action;
+  $("confidence").textContent = `confidence ${(r.confidence * 100).toFixed(0)}%`;
+  bars($("probs"), r.probabilities, r.action, A_LABELS);
+
+  $("scrub").value = i;
+  $("meta").textContent = `step ${i + 1}/${rows.length} · episode ${r.episode} · reward ${r.reward.toFixed(1)}`;
+  document.title = `jevDoom — step ${i + 1}`;
+}
+
+function load(text) {
+  rows = parse(text);
+  if (!rows.length) return;
+  i = 0;
+  $("loader").hidden = true;
+  $("viewer").hidden = false;
+  $("controls").hidden = false;
+  $("scrub").max = rows.length - 1;
+  render();
+}
+
+function togglePlay() {
+  if (timer) { clearInterval(timer); timer = null; $("play").textContent = "▶ Play"; return; }
+  $("play").textContent = "⏸ Pause";
+  timer = setInterval(() => {
+    if (i >= rows.length - 1) { togglePlay(); return; }
+    i++; render();
+  }, 450);
+}
+
+$("file").addEventListener("change", (e) => {
+  const f = e.target.files[0];
+  if (f) f.text().then(load);
+});
+$("scrub").addEventListener("input", (e) => { i = +e.target.value; render(); });
+$("play").addEventListener("click", togglePlay);
+document.addEventListener("dragover", (e) => e.preventDefault());
+document.addEventListener("drop", (e) => {
+  e.preventDefault();
+  const f = e.dataTransfer.files[0];
+  if (f) f.text().then(load);
+});
+</script>
+</body>
+</html>
