@@ -28,7 +28,7 @@ cp .env.example .env              # paste your TYPESAFE_API_KEY into .env
 PYTHONPATH=src python -m jevdoom.server     # opens http://127.0.0.1:8765
 ```
 
-## The UI: game + Jev + controls on one page
+## The interface: game, Jev and controls on a single page
 
 - **Who plays** — *Jev* (the model picks each tactic), *Autopilot* (the hand-written
   reflex, no API) or *You* (keyboard and mouse).
